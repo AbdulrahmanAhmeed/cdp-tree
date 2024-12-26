@@ -30,6 +30,7 @@ namespace ei8.Cortex.Diary.Plugins.Tree
         private Timer refreshTimer;
         private DotNetObjectReference<Tree>? dotNetHelper;
         private TreePluginSettingsService pluginSettingsService;
+        private bool IsExpandModalVisible { get; set; }
 
         public Tree()
         {
@@ -53,7 +54,21 @@ namespace ei8.Cortex.Diary.Plugins.Tree
                     this.ControlsEnabled = false;
                     this.EditNeuron = this.SelectedNeuron.Neuron;
                     break;
+                case ContextMenuOption.ExpandUntilPostsynapticExternalReferences:
+                    this.ShowExpandModal();
+                    // TODO: make time limit configurable
+                    // TODO: encapsulate in TreeNeuronViewModel
+                    this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Interval = 10000;
+                    this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Elapsed -= this.ExpandPostsynapticsUntilExternalReferencesTimer_Elapsed;
+                    this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Elapsed += this.ExpandPostsynapticsUntilExternalReferencesTimer_Elapsed;
+                    this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Start();
+                    break;
             }
+        }
+
+        private void ExpandPostsynapticsUntilExternalReferencesTimer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            this.CancelExpand();
         }
 
         private async void OnKeyPress(KeyboardEventArgs e)
@@ -63,6 +78,24 @@ namespace ei8.Cortex.Diary.Plugins.Tree
                 if (!string.IsNullOrEmpty(this.AvatarUrl))
                     await this.Reload();
             }
+        }
+
+        private void CancelExpand()
+        {
+            // TODO: encapsulate in TreeNeuronViewModel
+            if (
+                this.SelectedNeuron != null && 
+                this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Enabled
+            )
+                this.SelectedNeuron.ExpandPostsynapticsUntilExternalReferencesTimer.Stop();
+
+            this.IsExpandModalVisible = false;
+            // Add any additional cancel logic here
+        }
+
+        private void ShowExpandModal()
+        {
+            this.IsExpandModalVisible = true;
         }
 
         private void ShowOptionsMenu()
@@ -310,7 +343,6 @@ namespace ei8.Cortex.Diary.Plugins.Tree
         }
 
         private bool ControlsEnabled { get; set; } = true;
-
         private TreeNeuronViewModel SelectedNeuron { get; set; } = null;
 
         private Neuron InitialRegionNeuron { get; set; } = null;
@@ -600,5 +632,9 @@ namespace ei8.Cortex.Diary.Plugins.Tree
         public ISubscriptionQueryService SubscriptionsQueryService { get; set; }
         [Parameter]
         public IPluginSettingsService PluginSettingsService { get => this.pluginSettingsService; set { this.pluginSettingsService = (TreePluginSettingsService) value; } }
+
+        
+
+        
     }
 }
